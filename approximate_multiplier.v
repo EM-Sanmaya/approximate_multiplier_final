@@ -1,89 +1,104 @@
-module half_adder(
-    input x, 
-    input y, 
-    output sum, 
-    output carry
+`timescale 1ns / 1ps
+
+// Half Adder Module
+module half_adder (
+    input a, b,
+    output sum, carry
 );
-    assign sum = x ^ y;
-    assign carry = x & y;
+    assign sum = a | b;
+    assign carry = a & b;
+endmodule
+
+// Full Adder Module
+module full_adder (
+    input a, b, cin,
+    output sum, cout
+);
+    assign sum = a | b | cin;
+    assign cout = b;
+endmodule
+
+// 4:2 Compressor Module
+module compressor (
+    input in1, in2, in3, in4,
+    output sum, carry
+);
+    assign sum = (in1 | in2) ^ (in3 | in4);
+    assign carry = (in1 & in2) | (in3 & in4);
+endmodule
+
+// Approximate 4x4 Multiplier
+module approximate_multiplier (
+    input [3:0] a, b,
+    output [7:0] result
+);
+
+    // Partial Product Generation
+    wire pp00 = a[0] & b[0];
+    wire pp10 = a[1] & b[0];
+    wire pp20 = a[2] & b[0];
+    wire pp30 = a[3] & b[0];
+
+    wire pp01 = a[0] & b[1];
+    wire pp11 = a[1] & b[1];
+    wire pp21 = a[2] & b[1];
+    wire pp31 = a[3] & b[1];
+
+    wire pp02 = a[0] & b[2];
+    wire pp12 = a[1] & b[2];
+    wire pp22 = a[2] & b[2];
+    wire pp32 = a[3] & b[2];
+
+    wire pp03 = a[0] & b[3];
+    wire pp13 = a[1] & b[3];
+    wire pp23 = a[2] & b[3];
+    wire pp33 = a[3] & b[3];
+
+    // Pre-processing with OR and AND (Partial Compress)
+    wire p1 = pp10 | pp01;
+    wire g1 = pp10 & pp01;
+
+    wire p2 = pp20 | pp02;
+    wire g2 = pp20 & pp02;
+
+    wire p3 = pp30 | pp03;
+    wire g3 = pp30 & pp03;
+
+    wire p4 = pp12 | pp21;
+    wire g4 = pp12 & pp21;
+
+    wire p5 = pp13 | pp31;
+    wire g5 = pp13 & pp31;
+
+    wire p6 = pp32 | pp23;
+    wire g6 = pp32 & pp23;
+
+    // Output Bit 0
+    assign result[0] = pp00;
+
+    // Intermediate Wires
+    wire h1_carry, h1_sum;
+    wire comp1_sum, comp1_carry;
+    wire comp2_sum, comp2_carry;
+    wire comp3_sum, comp3_carry;
+    wire h2_sum, h2_carry;
+    wire f1_sum, f1_carry;
+    wire f2_sum, f2_carry;
+    wire f3_sum, f3_carry;
+    wire h3_sum, h3_carry;
+
+    // Logic Processing
+    half_adder ha1 (p1, g1, result[1], h1_carry);
+    compressor comp1 (p2, pp11, g2, h1_carry, comp1_sum, comp1_carry);
+    compressor comp2 (p3, p4, g4, g3, comp2_sum, comp2_carry);
+    compressor comp3 (p5, pp22, g5, 1'b0, comp3_sum, comp3_carry);
+
+    half_adder ha2 (comp1_sum, comp1_carry, result[2], h2_carry);
+    full_adder fa1 (comp2_sum, comp2_carry, h2_carry, result[3], f1_carry);
+    full_adder fa2 (comp3_sum, comp3_carry, f1_carry, result[4], f2_carry);
+    full_adder fa3 (p6, g6, f2_carry, result[5], f3_carry);
+    half_adder ha3 (pp33, f3_carry, result[6], result[7]);
+
 endmodule
 
 
-module full_adder(
-    input x, 
-    input y, 
-    input cin, 
-    output sum, 
-    output cout
-);
-    assign sum = x ^ y ^ cin;
-    assign cout = y;  // NOTE: this is not a standard full adder carry-out logic
-endmodule
-
-
-module compressor(
-    input i1, 
-    input i2, 
-    input i3, 
-    input i4, 
-    output sum, 
-    output carry
-);
-    assign sum = (i1 | i2) ^ (i3 | i4);
-    assign carry = (i1 | i2) & (i3 | i4);
-endmodule
-
-
-module approximate_multiplier(
-    input  [3:0] A, 
-    input  [3:0] B,
-    output [7:0] P
-);
-
-    wire m00 = A[0] & B[0];
-    wire m10 = A[1] & B[0];
-    wire m20 = A[2] & B[0];
-    wire m30 = A[3] & B[0];
-    wire m01 = A[0] & B[1];
-    wire m11 = A[1] & B[1];
-    wire m21 = A[2] & B[1];
-    wire m31 = A[3] & B[1];
-    wire m02 = A[0] & B[2];
-    wire m12 = A[1] & B[2];
-    wire m22 = A[2] & B[2];
-    wire m32 = A[3] & B[2];
-    wire m03 = A[0] & B[3];
-    wire m13 = A[1] & B[3];
-    wire m23 = A[2] & B[3];
-    wire m33 = A[3] & B[3];
-
-    wire ps10 = m10 | m01;
-    wire cg10 = m10 & m01;
-    wire ps20 = m20 | m02;
-    wire cg20 = m20 & m02;
-    wire ps30 = m30 | m03;
-    wire cg30 = m30 & m03;
-    wire ps21 = m12 | m21;
-    wire cg21 = m12 & m21;
-    wire ps31 = m13 | m31;
-    wire cg31 = m13 & m31;
-    wire ps32 = m32 | m23;
-    wire cg32 = m32 & m23;
-
-    assign P[0] = m00;
-
-    wire s1, c1, s2, c2, c3, c4, s3, s4, s5, c5;
-
-    half_adder HA1(ps10, cg10, P[1], s1);
-
-    compressor CMP1(ps20, m11, cg20, s1, s2, c1);
-    compressor CMP2(ps30, ps21, cg21, cg30, c2, c3);
-    compressor CMP3(ps31, m22, cg31, 1'b0, c4, c5);
-
-    half_adder HA2(s2, c1, P[2], s3);
-    full_adder FA1(c2, c3, s3, P[3], s4);
-    full_adder FA2(c4, c5, s4, P[4], s5);
-    full_adder FA3(ps32, cg32, s5, P[5], c5);
-    half_adder HA3(m33, c5, P[6], P[7]);
-
-endmodule
