@@ -11,9 +11,9 @@ module multiplier_tb;
 
     // Instantiate the approximate multiplier
     approximate_multiplier uut (
-        .A(A),
-        .B(B),
-        .P(approx_result)
+        .a(A),
+        .b(B),
+        .result(approx_result)
     );
 
     initial begin
